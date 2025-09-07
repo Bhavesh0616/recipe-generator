@@ -3,6 +3,9 @@ name: Build FoodChat macOS apps
 on:
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   build:
     strategy:
@@ -13,6 +16,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Ensure GitHub CLI (gh) exists for release downloads
+      - name: Ensure gh CLI
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            brew install gh
+          fi
+
+      # ⬇️ Download your zipped assets from the latest Release and unzip them
+      - name: Download assets from Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "assets*.zip" --dir . || true
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "gpt2.zip" --dir . || true
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "translation_models.zip" --dir . || true
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "csv.zip" --dir . || true
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "*whisper*.zip" --dir . || true
+          shopt -s nullglob
+          for f in *.zip; do unzip -q "$f" -d .; done
+
+      # Put everything where your app expects it: ./assets/...
+      - name: Arrange assets into ./assets
+        run: |
+          set -e
+          mkdir -p assets
+          [ -d gpt2 ] && mv gpt2 assets/
+          [ -d translation_models ] && mv translation_models assets/
+          [ -d models--openai--whisper-small ] && mv models--openai--whisper-small assets/ || true
+          [ -f full_dataset.csv ] && mv full_dataset.csv assets/ || true
+          [ -f cleaned_ingredients.csv ] && mv cleaned_ingredients.csv assets/ || true
+          ls -la assets
+
       - name: Set up Python 3.10.11
         uses: actions/setup-python@v5
         with:
@@ -21,29 +57,26 @@ jobs:
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          # torch for mac; adjust pin if you like
-          python -m pip install -r requirements.txt
-          python -m pip install pyinstaller
-          # Optional: build DMG tool
+          pip install -r requirements.txt
+          pip install pyinstaller
           brew install create-dmg || true
 
       - name: Build .app with PyInstaller
         run: |
           pyinstaller foodchat_mac.spec
-          # Result: dist/FoodChat.app
+          test -d dist/FoodChat.app || (echo "::error::FoodChat.app not built" && exit 1)
 
       - name: Create DMG
         run: |
           cd dist
           APP_NAME="FoodChat"
           DMG_NAME="${APP_NAME}-${{ matrix.os }}.dmg"
-          create-dmg --volname "${APP_NAME}" \
-                     --app-drop-link 600 185 \
-                     "${DMG_NAME}" "FoodChat.app"
-
-      # (Optional) Sign & Notarize if you add Apple Developer secrets
-      # - name: Codesign
-      # - name: Notarize
+          if command -v create-dmg >/dev/null 2>&1; then
+            create-dmg --volname "${APP_NAME}" --app-drop-link 600 185 "${DMG_NAME}" "FoodChat.app"
+          else
+            hdiutil create -volname "${APP_NAME}" -srcfolder "FoodChat.app" -ov -format UDZO "${DMG_NAME}"
+          fi
+          ls -lh "${DMG_NAME}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
