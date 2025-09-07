@@ -61,21 +61,18 @@ jobs:
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip wheel setuptools
-          # Remove any 'torch==...' line from requirements.txt
-          python - <<'PY'
-import re, pathlib
-p = pathlib.Path('requirements.txt')
-p.write_text(re.sub(r'(?m)^\s*torch[^\n]*\n', '', p.read_text()))
-print("Patched requirements.txt:\n", p.read_text())
-PY
-          # Install CPU torch that exists on macOS
+          # Remove any 'torch...' line from requirements.txt (BSD sed on macOS needs -i '')
+          sed -E -i '' '/^[[:space:]]*torch/d' requirements.txt
+          echo "requirements.txt after patch:"
+          cat requirements.txt
+          # Install CPU torch (works on both Intel & Apple Silicon runners)
           pip install --index-url https://download.pytorch.org/whl/cpu torch==2.2.2
           # Install the rest
           pip install -r requirements.txt
           pip install pyinstaller
           brew install create-dmg || true
 
-      # Build the .app (change start_mac.py to start_mca.py if that's your filename)
+      # Build the .app (change start_mac.py to start_mca.py if that's your file)
       - name: Build .app with PyInstaller
         run: |
           pyinstaller -y --windowed --name FoodChat \
