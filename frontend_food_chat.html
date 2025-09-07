@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Meal Planner</title>
+<style>
+  :root{
+    --teal:#00a6a6;
+    --yellow:#ffd966;
+    --bg:#f4fafa;
+    --danger:#ff5c5c;
+    --card:#ffffff;
+    --shadow:0 4px 8px rgba(0,0,0,0.1);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    background-color:var(--bg);
+    display:flex;
+    height:100vh;
+    color:#1b1b1b;
+  }
+  .sidebar{
+    background-color:var(--teal);
+    width:300px;
+    padding:20px;
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .logo{
+    font-size:1.4rem;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .new-chat-btn{
+    background-color:rgba(255,255,255,0.2);
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    color:#fff;
+    font-size:1rem;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    transition:background-color .2s ease-in-out, transform .04s ease-in-out;
+  }
+  .new-chat-btn:hover{ background-color:rgba(255,255,255,0.3); }
+  .new-chat-btn:active{ transform:scale(0.98); }
+
+  /* Chat list in sidebar */
+  #chatList{
+    margin-top:8px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    overflow:auto;
+  }
+  .chat-item{
+    background:rgba(255,255,255,0.14);
+    border:none;
+    padding:10px 12px;
+    border-radius:10px;
+    color:#fff;
+    text-align:left;
+    cursor:pointer;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .chat-item.active{
+    background:rgba(255,255,255,0.28);
+    outline:2px solid rgba(255,255,255,0.35);
+  }
+
+  .main{
+    flex:1;
+    padding:32px 40px;
+    overflow:auto;
+  }
+  h1{
+    color:var(--teal);
+    font-size:2rem;
+    text-align:center;
+    margin:0 0 24px 0;
+  }
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:16px;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+  select{
+    padding:8px 10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    background-color:var(--yellow);
+    font-weight:600;
+  }
+  textarea{
+    width:100%;
+    height:90px;
+    border-radius:12px;
+    border:1px solid var(--teal);
+    padding:10px;
+    resize:none;
+    font-size:1rem;
+    margin-bottom:16px;
+    background:#fff;
+  }
+  .health-filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-bottom:18px;
+    justify-content:center;
+  }
+  .health-filters label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:.95rem;
+    background:#ffffff;
+    padding:6px 10px;
+    border-radius:10px;
+    box-shadow:var(--shadow);
+  }
+  .actions{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    margin-bottom:14px;
+  }
+  .btn{
+    padding:10px 18px;
+    border-radius:12px;
+    font-size:1rem;
+    cursor:pointer;
+    border:none;
+  }
+  .btn-primary{ background-color:var(--teal); color:#fff; }
+  .btn-stop{ background-color:var(--danger); color:#fff; }
+  .recipes{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+    gap:18px;
+  }
+  .recipe-card{
+    background:var(--card);
+    border-radius:12px;
+    padding:16px;
+    box-shadow:var(--shadow);
+  }
+  
+  .muted{opacity:.8;font-size:.9rem}
+
+  .chat-history {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  .chat-msg {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+  }
+
+  .mic-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  #ingredients {
+    flex: 1;
+    padding-right: 40px; /* space for mic button */
+  }
+
+  .mic-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    background-color: #fff;
+    border-radius: 50%;
+    padding: 6px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .mic-icon:hover {
+    background-color: #333;
+  }
+
+  .mic-icon.listening {
+    background-color: #d32f2f;
+  }
+
+  .nutrition-btn {
+    background-color: #00a6a6;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    float: right;
+    margin-top: -10px;
+  }
+
+  .nutrition-popup {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    top: 20%;
+    left: 50%;
+    transform: translate(-50%, -20%);
+    background-color: white;
+    border: 2px solid #00a6a6;
+    padding: 16px;
+    border-radius: 10px;
+    min-width: 250px;
+    max-width: 400px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .nutrition-popup-close {
+    float: right;
+    font-size: 18px;
+    cursor: pointer;
+  }
+
+</style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">🧠 AI Meal Planner</div>
+    <button class="new-chat-btn" id="btnNewChat">➕ New Ingredient Chat</button>
+
+    <!-- Sidebar chat list -->
+    <div id="chatList" aria-label="Chats"></div>
+    <div class="muted" style="margin-top:auto; font-size:.85rem;">
+      Tip: Click a chat to make it active. All messages save into its JSON.
+    </div>
+  </div>
+
+  <div class="main">
+    <h1>My Meal Planner</h1>
+
+    <div class="controls">
+      <label for="displayLang">Choose your language:</label>
+      <select id="displayLang" aria-label="Display Language">
+        <option value="auto">Auto Detect</option>
+        <option value="en">English (en)</option>
+        <option value="fr">Français (fr)</option>
+        <option value="de">Deutsch (de)</option>
+        <option value="es">Español (es)</option>
+        <option value="it">Italiano (it)</option>
+        <option value="pt">Português (pt)</option>
+        <option value="ru">Русский (ru)</option>
+        <option value="ja">日本語 / Japanese (ja)</option>
+        <option value="ko">한국어 / Korean (ko)</option>
+        <option value="zh">中文 / Chinese (zh)</option>
+        <option value="th">ไทย / Thai (th)</option>
+        <option value="tr">Türkçe / Turkish (tr)</option>
+        <option value="vi">Tiếng Việt / Vietnamese (vi)</option>
+        <option value="hi">हिन्दी / Hindi (hi)</option>
+        <option value="bn">বাংলা / Bengali (bn)</option>
+        <option value="mr">मराठी / Marathi (mr)</option>
+        <option value="ta">தமிழ் / Tamil (ta)</option>
+        <option value="te">తెలుగు / Telugu (te)</option>
+        <option value="gu">ગુજરાતી / Gujarati (gu)</option>
+        <option value="kn">ಕನ್ನಡ / Kannada (kn)</option>
+        <option value="ml">മലയാളം / Malayalam (ml)</option>
+        <option value="pa">ਪੰਜਾਬੀ / Punjabi (pa)</option>
+        <!-- M2M100 supports many more; we’re showing 20 popular ones -->
+      </select>
+    </div>
+
+
+    <div class="mic-input-group">
+      <textarea id="ingredients" rows="2" placeholder="Type ingredients or ask a question..."></textarea>
+      <img id="mic-btn" src="icons8-microphone-48.png" alt="Mic" class="mic-icon" title="Speak" />
+    </div>
+
+    <div class="health-filters" id="healthFilters">
+      <label><input type="checkbox" data-key="diabetes" /> Diabetes</label>
+      <label><input type="checkbox" data-key="hypertension" /> Hypertension</label>
+      <label><input type="checkbox" data-key="allergy_peanut" /> Allergies: Peanut</label>
+      <label><input type="checkbox" data-key="low_sodium" /> Low Sodium</label>
+      <label><input type="checkbox" data-key="vegetarian" /> Vegetarian</label>
+      <label><input type="checkbox" data-key="vegan" /> Vegan</label>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="btnFind">🔍 Find Recipes</button>
+      <!-- <button class="btn btn-stop" id="btnStop">⏹ Stop</button> -->
+    </div>
+
+    <div id="activeChatNotice" class="muted" style="text-align:center;"></div>
+
+    <div class="recipes">
+      <div id="recipes"></div> <!-- Only recipe cards go here -->
+    </div>
+
+    <div class="chat-history" id="chatHistory" style="margin-top:32px;">
+      <h3 style="margin-bottom:12px;">Chat History</h3>
+    </div>
+
+
+      <!-- Recipe Cards Will Appear Here -->
+    </div>
+  </div>
+
+  <!-- Qt WebChannel bridge (provided by PyQt) -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // --- New Chat ---  [B] AUTO‑ACTIVATE THE CHAT YOU JUST CREATED
+  document.getElementById('btnNewChat').addEventListener('click', async () => {
+    const title = prompt('Name this chat:', 'My Ingredients');
+    if (!title) return;
+
+    const created = await fetch('/api/chats', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title})
+    }).then(r=>r.json());
+
+    await loadChats(); // repaints sidebar buttons
+
+    // server: mark it active
+    await fetch('/api/active_chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ path: created.path })
+    });
+
+    // UI: call setActiveChat to refresh history for the NEW chat
+    const btn = [...document.querySelectorAll('.chat-item')]
+      .find(b => b.dataset && b.dataset.path === created.path);
+    if (btn) {
+      await setActiveChat(created.path, created.title, btn);
+    } else {
+      document.getElementById('activeChatNotice').textContent = `Active chat: ${created.title}`;
+    }
+  });
+
+  async function loadChats(){
+    const res = await fetch('/api/chats');
+    const chats = await res.json();
+    const chatList = document.getElementById('chatList');
+    chatList.innerHTML = '';
+
+    chats.forEach(c=>{
+      const btn = document.createElement('button');
+      btn.className = 'chat-item';
+      btn.textContent = `🗂 ${c.title}`;
+      btn.dataset.path = c.path;
+      btn.dataset.title = c.title;
+      btn.onclick = ()=>setActiveChat(c.path, c.title, btn);
+      chatList.appendChild(btn);
+    });
+
+    // mark whichever chat is currently active
+    const ac = await fetch('/api/active_chat').then(r=>r.json()).catch(()=>null);
+    if (ac && ac.path) {
+      const activeBtn = [...document.querySelectorAll('.chat-item')]
+        .find(b => b.dataset.path === ac.path);
+      if (activeBtn) {
+        [...document.querySelectorAll('.chat-item')].forEach(el=>el.classList.remove('active'));
+        activeBtn.classList.add('active');
+        document.getElementById('activeChatNotice').textContent = `Active chat: ${activeBtn.dataset.title}`;
+      }
+    }
+  }
+
+  // helper: render chat history (newest first) with clickable AI suggestions
+  async function renderChatHistory(){
+    const historyBox = document.getElementById("chatHistory");
+    historyBox.innerHTML = `<h3 style="margin-bottom:12px;">Chat History</h3>`;
+    const histRes = await fetch('/api/chat_history');
+    let history = await histRes.json();
+
+    // newest first
+    history.sort((a,b) => (b.ts || '').localeCompare(a.ts || ''));
+
+    history.forEach(m => {
+      const msg = document.createElement('div');
+      msg.className = 'chat-msg';
+      msg.style.marginBottom = "16px";
+      msg.dataset.message = JSON.stringify(m);
+
+      const header = document.createElement('div');
+      header.style.fontWeight = 'bold';
+      header.style.color = m.role === 'user' ? '#007bff' : '#333';
+      header.textContent = m.role === 'user' ? '🧍 You' : '🤖 AI';
+
+      const body = document.createElement('div');
+      body.style.marginLeft = "8px";
+      body.style.whiteSpace = "pre-wrap";
+
+      if (m.role === 'assistant') {
+        // Detect the 3-bullet suggestions and render as clickable items
+        const lines = (m.content || "").split("\n").map(s => s.trim()).filter(Boolean);
+        const bulletLike = lines.length && lines.every(s => s.startsWith("•"));
+        if (bulletLike) {
+          const titles = lines.map(s => s.replace(/^•\s*/, '')).filter(Boolean);
+          const ul = document.createElement('ul');
+          titles.forEach(title => {
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.textContent = title;
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+            btn.style.cursor = 'pointer';
+            btn.style.textDecoration = 'underline';
+            btn.style.padding = '0';
+
+            btn.addEventListener('click', async () => {
+              const display_lang = (document.getElementById('displayLang').value || 'auto');
+              const res = await fetch('/api/get_recipe_detail', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ title, display_lang })
+              });
+              const detail = await res.json();
+
+              const old = li.querySelector('.detail-box');
+              if (old) old.remove();
+
+              const box = document.createElement('div');
+              box.className = 'detail-box';
+              box.style.marginTop = "8px";
+              box.style.background = "#f9f9f9";
+              box.style.borderRadius = "8px";
+              box.style.padding = "10px";
+              if (!detail.found) {
+                box.textContent = "Recipe not found.";
+              } else {
+                box.innerHTML = `
+                  <strong>Ingredients:</strong><br/>
+                  ${detail.ingredients && detail.ingredients.length ? `<ul>${detail.ingredients.map(i=>`<li>${i}</li>`).join('')}</ul>` : '<em>None</em>'}
+                  <strong>Steps:</strong><br/>
+                  <ol>${(detail.steps||["No steps found."]).map(s=>`<li>${s}</li>`).join('')}</ol>
+                  <button class="btn btn-primary" style="margin-top:10px;" onclick="showNutritionPopup('${title.replace(/'/g,"\\'")}')">🍎 Nutrition</button>
+                `;
+
+              }
+              li.appendChild(box);
+
+              // ⬇️ NEW: reload history so the persisted messages appear immediately
+              await renderChatHistory();
+            });
+
+
+            li.appendChild(btn);
+            ul.appendChild(li);
+          });
+          body.appendChild(ul);
+        } else {
+          body.textContent = m.content || '';
+        }
+      } else {
+        body.textContent = m.content || '';
+      }
+
+      msg.appendChild(header);
+      msg.appendChild(body);
+      historyBox.appendChild(msg);
+    });
+    renderNutritionButtons();
+  }
+
+  // setActiveChat now reuses the renderer
+  async function setActiveChat(path, title, btn){
+    window.activeChatPath = path;
+
+    await fetch('/api/active_chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path})
+    });
+
+    // UI selection state
+    [...document.querySelectorAll('.chat-item')].forEach(el=>el.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    document.getElementById('activeChatNotice').textContent = `Active chat: ${title}`;
+
+    // render newest-first history with clickable suggestions
+    await renderChatHistory();
+  }
+
+  // --- Health Filters Save ---
+  document.getElementById('healthFilters').addEventListener('change', async ()=>{
+    const f = {diabetes:false,hypertension:false,allergies:[],low_sodium:false,vegetarian:false,vegan:false};
+    document.querySelectorAll('#healthFilters input[type=checkbox]').forEach(b=>{
+      const key = b.dataset.key;
+      if (key === 'allergy_peanut'){ if(b.checked) f.allergies.push('peanut'); }
+      else { f[key] = b.checked; }
+    });
+    await fetch('/api/health_filters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(f)});
+  });
+
+  // --- Find Recipes ---  [A] ENSURE AN ACTIVE CHAT BEFORE SAVING
+  document.getElementById('btnFind').addEventListener('click', async ()=>{
+    // ensure there is an active chat
+    const ac = await fetch('/api/active_chat').then(r=>r.json());
+    if (!ac || !ac.path) {
+      const created = await fetch('/api/chats', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title: 'Ingredients' })
+      }).then(r=>r.json());
+
+      await fetch('/api/active_chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ path: created.path })
+      });
+
+      await loadChats();
+
+      const btn = [...document.querySelectorAll('.chat-item')]
+        .find(b => b.dataset && b.dataset.path === created.path);
+      if (btn) await setActiveChat(created.path, created.title, btn);
+    }
+
+    const ing = document.getElementById('ingredients').value || '';
+    const display_lang = (document.getElementById('displayLang').value || 'auto');
+
+    // Send the selected language to backend (currency removed)
+    await fetch('/api/find_recipes',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ingredients: ing, display_lang })
+    }).then(r=>r.json());
+
+    // Reload chat history so the new reply appears
+    await renderChatHistory();
+  });
+
+  // initial load
+  loadChats().then(renderChatHistory);
+});
+</script>
+
+<script>
+document.getElementById('mic-btn').addEventListener('click', async () => {
+  try {
+    const micBtn = document.getElementById("mic-btn");
+    micBtn.classList.add("listening");
+    micBtn.title = "Listening...";
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    let chunks = [];
+
+    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+    mediaRecorder.start();
+
+    await new Promise(r => setTimeout(r, 5000));
+    mediaRecorder.stop();
+
+    await new Promise(resolve => mediaRecorder.onstop = resolve);
+
+    const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+    const formData = new FormData();
+    formData.append('audio', audioBlob);
+
+    const response = await fetch('/api/voice_input', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+
+    if(data.text){
+      document.getElementById('ingredients').value = data.text;
+      document.getElementById('btnFind').click();
+    } else if(data.error) {
+      alert('Voice error: ' + data.error);
+    }
+
+    stream.getTracks().forEach(track => track.stop());
+  } catch (err) {
+    alert('Voice capture failed: ' + err.message);
+  } finally {
+    const micBtn = document.getElementById("mic-btn");
+    micBtn.classList.remove("listening");
+    micBtn.title = "Speak";
+  }
+});
+</script>
+
+<script>
+  async function getNutrition(title){
+    const res = await fetch('/api/get_nutrition', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ title })
+    });
+    const data = await res.json();
+    const box = document.getElementById("nutrition-box-" + title.replace(/\s+/g,'_'));
+    box.innerHTML = data && data.text ? `<strong>Nutrition Info:</strong><br/><pre>${data.text}</pre>` : "No info found.";
+  }
+</script>
+
+<script>
+async function showNutritionPopup(title) {
+  const displayLang = document.getElementById("displayLang").value || "auto";
+  const response = await fetch('/api/check_nutrition', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ingredients, display_lang: displayLang })
+  });
+
+  const data = await response.json();
+  document.getElementById('nutritionContent').innerText = data?.text || "No nutrition data found.";
+  document.getElementById('nutritionPopup').style.display = 'block';
+}
+</script>
+
+<!-- Existing scripts like showNutritionPopup, etc. -->
+
+<script>
+// ========== ADD THIS FUNCTION ==========
+function renderNutritionButtons() {
+  document.querySelectorAll(".chat-msg").forEach(msg => {
+    const msgData = msg.dataset.message && JSON.parse(msg.dataset.message);
+    if (!msg.querySelector('.btn-nutrition') && msgData?.meta?.payload?.recipe_detail?.ingredients) {
+      const btn = document.createElement('button');
+      btn.textContent = 'Nutrition';
+      btn.className = 'btn-nutrition';
+      btn.style.backgroundColor = '#00a6a6';
+      btn.style.color = 'white';
+      btn.style.border = 'none';
+      btn.style.padding = '4px 10px';
+      btn.style.marginLeft = '10px';
+      btn.style.borderRadius = '5px';
+      btn.style.cursor = 'pointer';
+
+      btn.addEventListener('click', async () => {
+        const ingredients = msgData.meta.payload.recipe_detail.ingredients || [];
+        if (!ingredients.length) {
+          showPopup("❌ No ingredients found for this message.");
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/check_nutrition', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ingredients })
+          });
+
+          const data = await response.json();
+          const nutritionText = data.text || "❌ No nutrition data returned.";
+
+          const existingBox = msg.querySelector(".nutrition-box");
+          if (existingBox) existingBox.remove();
+
+          const box = document.createElement("div");
+          box.className = "nutrition-box";
+          box.innerHTML = `<strong>Nutrition Info:</strong><br/>${nutritionText.replace(/\n/g, "<br/>")}`;
+          msg.appendChild(box);
+
+        } catch (err) {
+          showPopup("❌ Failed to load nutrition data.");
+        }
+      });
+
+      msg.appendChild(btn);
+    }
+  });
+}
+
+
+function showPopup(text) {
+  let popup = document.createElement('div');
+  popup.innerHTML = text;
+  popup.style.position = 'fixed';
+  popup.style.bottom = '30px';
+  popup.style.right = '30px';
+  popup.style.maxWidth = '300px';
+  popup.style.padding = '15px';
+  popup.style.backgroundColor = '#fff';
+  popup.style.border = '1px solid #ccc';
+  popup.style.borderRadius = '10px';
+  popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+  popup.style.zIndex = 10000;
+
+  const close = document.createElement('span');
+  close.innerHTML = '&times;';
+  close.style.float = 'right';
+  close.style.cursor = 'pointer';
+  close.style.fontSize = '18px';
+  close.style.marginLeft = '10px';
+  close.onclick = () => popup.remove();
+
+  popup.prepend(close);
+  document.body.appendChild(popup);
+}
+</script>
+
+
+
+<div id="nutritionPopup" class="nutrition-popup">
+  <span class="nutrition-popup-close" onclick="document.getElementById('nutritionPopup').style.display='none'">&times;</span>
+  <div id="nutritionContent">Loading nutrition info...</div>
+</div>
+
+<footer style="
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #f9f9f9;
+    text-align: center;
+    padding: 8px;
+    font-size: 0.85rem;
+    color: #666;
+    border-top: 1px solid #ddd;
+">
+  ⚠️ Nutritional value may not be accurate and this bot isn’t responsible for any health issues caused.
+</footer>
+
+<script>
+// ========== ADD THIS FUNCTION ==========
+function extractIngredientsFromChat() {
+  const aiMessages = document.querySelectorAll(".message.ai");
+  for (let i = aiMessages.length - 1; i >= 0; i--) {
+    const message = aiMessages[i].innerText;
+    const match = message.match(/Ingredients:\s*([-–•\d\w\,\s"']+)/i);
+    if (match) {
+      const ingredientsRaw = match[1];
+      const ingredients = ingredientsRaw
+        .split(/[,•-]/)
+        .map(s => s.replace(/["']/g, '').trim().toLowerCase())
+        .filter(Boolean);
+      return [...new Set(ingredients)];  // remove duplicates
+    }
+  }
+  return [];
+}
+
+document.querySelectorAll(".btn-nutrition").forEach(button => {
+  button.addEventListener("click", async () => {
+    // Find the ingredient list from the current chat block
+    const container = button.closest(".msg") || button.closest(".chat-msg") || document;
+    const ingListEl = container.querySelector("pre");
+
+    if (!ingListEl) {
+      alert("⚠️ Could not find ingredient list.");
+      return;
+    }
+
+    const ingredientText = ingListEl.textContent || "";
+    const ingredients = ingredientText
+      .split(/[\r\n]+|","|", "|, /)    // split by newlines, quotes, commas
+      .map(i => i.replace(/^-/, "").trim())
+      .filter(i => i.length > 0);
+
+    if (!ingredients.length) {
+      alert("⚠️ No ingredients found.");
+      return;
+    }
+
+    // Send to backend
+    const res = await fetch("/api/check_nutrition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ingredients })
+    });
+
+    const data = await res.json();
+    const text = data.text || "❌ No nutrition data found.";
+
+    // Inject below the button (avoid duplication)
+    const existingBox = button.parentElement.querySelector(".nutrition-box");
+    if (existingBox) existingBox.remove();
+
+    const nutritionBox = document.createElement("div");
+    nutritionBox.className = "nutrition-box";
+    nutritionBox.textContent = text;
+    button.parentElement.appendChild(nutritionBox);
+  });
+});
+
+</script>
+
+<!-- Your other HTML content -->
+
+<!-- ADD THIS BLOCK BEFORE </body> -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".btn-nutrition").forEach((button) => {
+      button.addEventListener("click", async () => {
+        try {
+          const res = await fetch("/api/check_nutrition", {
+            method: "POST",
+          });
+
+          const data = await res.json();
+          const nutritionText = data.text || "❌ No nutrition data returned.";
+
+          const nutritionBox = document.createElement("div");
+          nutritionBox.className = "nutrition-box";
+          nutritionBox.textContent = nutritionText;
+
+          const existingBox = button.parentElement.querySelector(".nutrition-box");
+          if (existingBox) existingBox.remove();
+
+          button.parentElement.appendChild(nutritionBox);
+        } catch (e) {
+          console.error("Nutrition fetch failed:", e);
+          alert("❌ Failed to get nutrition info");
+        }
+      });
+    });
+  });
+</script>
+
+<style>
+.nutrition-box {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f4f4f4;
+  border-radius: 5px;
+  font-family: monospace;
+  white-space: pre-wrap;
+}
+</style>
+
+</body>
+</html>
+
+
+</body>
+</html>

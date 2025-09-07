@@ -1,0 +1,8 @@
+{
+  "diabetes": false,
+  "hypertension": false,
+  "allergies": [],
+  "low_sodium": false,
+  "vegetarian": false,
+  "vegan": false
+}
