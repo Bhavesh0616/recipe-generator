@@ -85,6 +85,7 @@ jobs:
             --collect-all pythainlp \
             --collect-all jieba \
             --collect-all pypinyin \
+            --collect-all indic_transliteration \
             --hidden-import sentencepiece \
             --hidden-import sacremoses \
             --exclude-module tensorflow \
