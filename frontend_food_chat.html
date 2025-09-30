@@ -214,11 +214,11 @@
     background-color: #00a6a6;
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 6px;
     cursor: pointer;
-    float: right;
-    margin-top: -10px;
+    float: none;
+    margin-top: 0;
   }
 
   .nutrition-popup {
@@ -277,6 +277,18 @@
         <option value="th">ไทย / Thai (th)</option>
         <option value="tr">Türkçe / Turkish (tr)</option>
         <option value="vi">Tiếng Việt / Vietnamese (vi)</option>
+        <option value="sw">Swahili</option>
+        <option value="lg">Lugando</option>
+        <option value="lao">Lango</option>
+        <option value="ach">Acholi</option>
+        <option value="lug">Lugiso</option>
+        <option value="teo">Iteso</option>
+        <option value="nyn">Runyankele-Rukiga</option>
+        <option value="nqo">Runyoro-Kitalu</option>
+        <option value="xog">Lusoga</option>
+        <option value="teo">Ateso</option>
+        <option value="bwb">Lubwisi</option>
+        <option value="lgg">Lugbara</option>
         <option value="hi">हिन्दी / Hindi (hi)</option>
         <option value="bn">বাংলা / Bengali (bn)</option>
         <option value="mr">मराठी / Marathi (mr)</option>
@@ -303,6 +315,19 @@
       <label><input type="checkbox" data-key="low_sodium" /> Low Sodium</label>
       <label><input type="checkbox" data-key="vegetarian" /> Vegetarian</label>
       <label><input type="checkbox" data-key="vegan" /> Vegan</label>
+      <label><input type="checkbox" data-key="gluten_free" /> Gluten Free</label>
+      <label><input type="checkbox" data-key="dairy_free" /> Dairy Free</label>
+      <label><input type="checkbox" data-key="keto" /> Keto</label>
+      <label><input type="checkbox" data-key="paleo" /> Paleo</label>
+      <label><input type="checkbox" data-key="heart_health" /> Heart Health</label>
+      <label><input type="checkbox" data-key="renal" /> Renal Friendly</label>
+      <label><input type="checkbox" data-key="weight_loss" /> Weight Loss</label>
+      <label><input type="checkbox" data-key="high_protein" /> High Protein</label>
+      <label><input type="checkbox" data-key="low_fat" /> Low Fat</label>
+      <label><input type="checkbox" data-key="low_carb" /> Low Carb</label>
+      <label><input type="checkbox" data-key="pregnancy" /> Pregnancy Safe</label>
+      <label><input type="checkbox" data-key="children" /> Kid Friendly</label>
+      <label><input type="checkbox" data-key="senior" /> Senior Friendly</label>
     </div>
 
     <div class="actions">
@@ -327,6 +352,24 @@
 
   <!-- Qt WebChannel bridge (provided by PyQt) -->
 <script>
+  // escape helper (add this)
+  function escapeHtml(s=''){
+    return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+  }
+  // turn a string like `"a","b","c"` or a blob into an array
+  function splitSmart(val){
+    if (Array.isArray(val)) return val.flatMap(splitSmart);
+    if (val == null) return [];
+    let s = String(val).trim().replace(/\\+$/,'');           // drop trailing backslashes
+    s = s.replace(/^\[|\]$/g,'');                            // strip [ ]
+    if (/"\s*,\s*"/.test(s) || /^".*"$/.test(s)) {           // "a","b","c"
+      return s.replace(/^"+|"+$/g,'').split(/"\s*,\s*"/).map(x=>x.replace(/^"+|"+$/g,'').trim()).filter(Boolean);
+    }
+    if (/\n/.test(s))  return s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+    if (/\d+\.\s/.test(s)) return s.split(/\d+\.\s/g).map(x=>x.trim()).filter(Boolean); // 1. step 2. step
+    return s.split(/\s*,\s*|;\s*/).map(x=>x.replace(/^"+|"+$/g,'').trim()).filter(Boolean);
+  }
+
 document.addEventListener('DOMContentLoaded', () => {
   // --- New Chat ---  [B] AUTO‑ACTIVATE THE CHAT YOU JUST CREATED
   document.getElementById('btnNewChat').addEventListener('click', async () => {
@@ -387,102 +430,192 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // helper: render chat history (newest first) with clickable AI suggestions
-  async function renderChatHistory(){
-    const historyBox = document.getElementById("chatHistory");
-    historyBox.innerHTML = `<h3 style="margin-bottom:12px;">Chat History</h3>`;
-    const histRes = await fetch('/api/chat_history');
-    let history = await histRes.json();
 
-    // newest first
-    history.sort((a,b) => (b.ts || '').localeCompare(a.ts || ''));
+async function renderChatHistory(){
+  const historyBox = document.getElementById("chatHistory");
+  historyBox.innerHTML = `<h3 style="margin-bottom:12px;">Chat History</h3>`;
 
-    history.forEach(m => {
-      const msg = document.createElement('div');
-      msg.className = 'chat-msg';
-      msg.style.marginBottom = "16px";
-      msg.dataset.message = JSON.stringify(m);
+  const res = await fetch('/api/chat_history');
+  const history = (await res.json()).sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
 
-      const header = document.createElement('div');
-      header.style.fontWeight = 'bold';
-      header.style.color = m.role === 'user' ? '#007bff' : '#333';
-      header.textContent = m.role === 'user' ? '🧍 You' : '🤖 AI';
+  history.forEach(m => {
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.style.marginBottom = "16px";
 
-      const body = document.createElement('div');
-      body.style.marginLeft = "8px";
-      body.style.whiteSpace = "pre-wrap";
+    // Header (You / AI)
+    const header = document.createElement('div');
+    header.style.fontWeight = 'bold';
+    header.style.color = m.role === 'user' ? '#007bff' : '#333';
+    header.textContent = m.role === 'user' ? '🧍 You' : '🤖 AI';
 
-      if (m.role === 'assistant') {
-        // Detect the 3-bullet suggestions and render as clickable items
-        const lines = (m.content || "").split("\n").map(s => s.trim()).filter(Boolean);
-        const bulletLike = lines.length && lines.every(s => s.startsWith("•"));
-        if (bulletLike) {
-          const titles = lines.map(s => s.replace(/^•\s*/, '')).filter(Boolean);
+    // Body
+    const body = document.createElement('div');
+    body.style.marginLeft = "8px";
+
+    if (m.role === 'assistant') {
+      const rd = m?.meta?.payload?.recipe_detail;
+
+      // Case 1: AI already returned a specific recipe (ingredients/steps present)
+      if (rd && (rd.ingredients?.length || rd.steps?.length)) {
+        const ings  = splitSmart(rd.ingredients);
+        const steps = splitSmart(rd.steps);
+
+        body.innerHTML = `
+          <div class="recipe-card" style="background:#fff;border-radius:12px;padding:16px;box-shadow:var(--shadow);">
+            ${rd.title ? `<h4 style="margin:0 0 8px 0;">🍽️ ${escapeHtml(rd.title)}</h4>` : ''}
+            <div style="font-weight:600; margin-top:6px;">Ingredients</div>
+            <ul style="margin:6px 0 0 18px;">
+              ${ings.map(i=>`<li>${escapeHtml(i)}</li>`).join('')}
+            </ul>
+            <div style="font-weight:600; margin-top:12px;">Steps</div>
+            <ol style="margin:6px 0 0 18px;">
+              ${steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}
+            </ol>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="nutrition-btn" type="button"
+                      style="background:#00a6a6;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">
+                🍎 Nutrition
+              </button>
+              <button class="health-btn" type="button"
+                      style="background:#00a6a6;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">
+                ❤️ Health Check
+              </button>
+            </div>
+          </div>
+        `;
+
+        // Wire Nutrition
+        const nbtn = body.querySelector('.nutrition-btn');
+        nbtn.addEventListener('click', (e) => {
+          const card = e.currentTarget.closest('.recipe-card');
+          showNutrition(ings, card);
+        });
+
+        // Wire Health
+        const hbtn = body.querySelector('.health-btn');
+        // replace the whole Health button listener with this
+
+        hbtn.addEventListener('click', async (e) => {
+          const displayLang = document.getElementById('displayLang').value || 'auto';
+          const card = e.currentTarget.closest('.recipe-card');
+
+          try {
+            const r = await fetch('/api/health_check', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ display_lang: displayLang })
+            });
+
+            // If the server appended a chat message but didn't return a text payload,
+            // we still want the UI to show it by re-rendering chat history.
+            let data = {};
+            try { data = await r.json(); } catch(_) {}
+
+            const ok   = r.ok && (data.ok !== false); // accept truthy or missing
+            const text = (data && (data.text || data.summary)) || '';
+
+            // Inline box if text came back:
+            if (ok && text) {
+              // one box per card
+              let box = card.querySelector('.health-box');
+              if (box) box.remove();
+
+              box = document.createElement('div');
+              box.className = 'health-box';
+              box.style.marginTop = '10px';
+              box.style.padding = '10px';
+              box.style.borderRadius = '6px';
+              box.style.whiteSpace = 'pre-wrap';
+              box.style.background = '#e8f7ed';
+              box.style.border = '1px solid #2e7d32';
+
+              const h = document.createElement('div');
+              h.style.fontWeight = '600';
+              h.style.marginBottom = '6px';
+              h.textContent = '🩺 Health Check';
+
+              const pre = document.createElement('pre');
+              pre.style.whiteSpace = 'pre-wrap';
+              pre.style.margin = 0;
+              pre.textContent = text;
+
+              box.appendChild(h);
+              box.appendChild(pre);
+              card.appendChild(box);
+              box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else if (ok) {
+              // No inline text (but server stored it) → refresh history to show saved block
+              await renderChatHistory();
+            } else {
+              alert('Health check failed.');
+            }
+          } catch (err) {
+            console.error('[ui] health_check error:', err);
+            alert('Health check failed.');
+          }
+        });
+
+      } else {
+        // Case 2: AI listed multiple recipe suggestions — render list as clickable items
+        const raw = (m.content || '');
+        const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+        // keep only list-looking lines (•, -, *, or 1.)
+        const listItems = lines
+          .filter(s => /^([•\-\*\u2022]|\d+\.)\s*/.test(s))
+          .map(s => s.replace(/^([•\-\*\u2022]|\d+\.)\s*/, ''))
+          .filter(Boolean);
+
+        if (listItems.length >= 3) {
           const ul = document.createElement('ul');
-          titles.forEach(title => {
+
+          listItems.forEach(titleText => {
             const li = document.createElement('li');
+
             const btn = document.createElement('button');
-            btn.textContent = title;
+            btn.type = 'button';
+            btn.textContent = titleText;
             btn.style.border = 'none';
             btn.style.background = 'transparent';
             btn.style.cursor = 'pointer';
             btn.style.textDecoration = 'underline';
             btn.style.padding = '0';
 
+            // ⬇️ SAVE SELECTION + RE-RENDER (no inline expansion)
             btn.addEventListener('click', async () => {
-              const display_lang = (document.getElementById('displayLang').value || 'auto');
-              const res = await fetch('/api/get_recipe_detail', {
+              const display_lang = document.getElementById('displayLang').value || 'auto';
+              await fetch('/api/get_recipe_detail', {
                 method: 'POST',
                 headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ title, display_lang })
+                body: JSON.stringify({ title: titleText, display_lang })
               });
-              const detail = await res.json();
-
-              const old = li.querySelector('.detail-box');
-              if (old) old.remove();
-
-              const box = document.createElement('div');
-              box.className = 'detail-box';
-              box.style.marginTop = "8px";
-              box.style.background = "#f9f9f9";
-              box.style.borderRadius = "8px";
-              box.style.padding = "10px";
-              if (!detail.found) {
-                box.textContent = "Recipe not found.";
-              } else {
-                box.innerHTML = `
-                  <strong>Ingredients:</strong><br/>
-                  ${detail.ingredients && detail.ingredients.length ? `<ul>${detail.ingredients.map(i=>`<li>${i}</li>`).join('')}</ul>` : '<em>None</em>'}
-                  <strong>Steps:</strong><br/>
-                  <ol>${(detail.steps||["No steps found."]).map(s=>`<li>${s}</li>`).join('')}</ol>
-                  <button class="btn btn-primary" style="margin-top:10px;" onclick="showNutritionPopup('${title.replace(/'/g,"\\'")}')">🍎 Nutrition</button>
-                `;
-
-              }
-              li.appendChild(box);
-
-              // ⬇️ NEW: reload history so the persisted messages appear immediately
-              await renderChatHistory();
+              await renderChatHistory(); // shows "Selected recipe: ..." + recipe card
             });
-
 
             li.appendChild(btn);
             ul.appendChild(li);
           });
+
+          body.innerHTML = '';
           body.appendChild(ul);
         } else {
-          body.textContent = m.content || '';
+          // Fallback: just render the text if it doesn't look like a list of suggestions
+          body.style.whiteSpace = 'pre-wrap';
+          body.textContent = raw;
         }
-      } else {
-        body.textContent = m.content || '';
       }
+    } else {
+      // User message
+      body.style.whiteSpace = "pre-wrap";
+      body.textContent = m.content || '';
+    }
 
-      msg.appendChild(header);
-      msg.appendChild(body);
-      historyBox.appendChild(msg);
-    });
-    renderNutritionButtons();
-  }
+    msg.appendChild(header);
+    msg.appendChild(body);
+    historyBox.appendChild(msg);
+  });
+}
 
   // setActiveChat now reuses the renderer
   async function setActiveChat(path, title, btn){
@@ -618,19 +751,43 @@ document.getElementById('mic-btn').addEventListener('click', async () => {
 </script>
 
 <script>
-async function showNutritionPopup(title) {
-  const displayLang = document.getElementById("displayLang").value || "auto";
-  const response = await fetch('/api/check_nutrition', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ingredients, display_lang: displayLang })
-  });
+async function showNutrition(ingredients, containerEl){
+  try {
+    const displayLang = document.getElementById("displayLang").value || "auto";
+    const res = await fetch('/api/check_nutrition', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ingredients, display_lang: displayLang })
+    });
+    const data = await res.json();
+    const text = data?.text || "No nutrition data found.";
 
-  const data = await response.json();
-  document.getElementById('nutritionContent').innerText = data?.text || "No nutrition data found.";
-  document.getElementById('nutritionPopup').style.display = 'block';
+    const card = containerEl || document.querySelector('.recipe-card:last-of-type');
+    if (!card) return;
+
+    // one box per card
+    const old = card.querySelector('.nutrition-box');
+    if (old) old.remove();
+
+    const box = document.createElement('div');
+    box.className = 'nutrition-box';
+    box.style.marginTop = '10px';
+    box.style.padding = '10px';
+    box.style.background = '#f4f4f4';
+    box.style.borderRadius = '6px';
+    box.style.whiteSpace = 'pre-wrap';
+    box.textContent = text;
+
+    card.appendChild(box);
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (e) {
+    console.error(e);
+    alert('❌ Failed to load nutrition info.');
+  }
 }
+
 </script>
+
 
 <!-- Existing scripts like showNutritionPopup, etc. -->
 
@@ -842,10 +999,6 @@ document.querySelectorAll(".btn-nutrition").forEach(button => {
   white-space: pre-wrap;
 }
 </style>
-
-</body>
-</html>
-
 
 </body>
 </html>

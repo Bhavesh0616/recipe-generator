@@ -1,6 +1,15 @@
-assets/
+# caches / venvs
 .venv/
-dist/
-build/
 __pycache__/
+.cache/
+.locks/
 
+# local data
+chats/
+data/
+*.log
+
+# pyinstaller output
+build/
+dist/
+*.spec
