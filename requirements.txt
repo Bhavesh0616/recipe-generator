@@ -1,6 +1,6 @@
 flask
-transformers==4.56
-torch==2.8
+transformers-4.41.0-py3-none-any.whl
+torch==2.2.2
 numpy==1.26.4
 pandas==2.2.2
 scipy==1.11.4
